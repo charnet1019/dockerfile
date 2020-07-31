@@ -1,0 +1,93 @@
+pipeline {
+    //agent {
+    //    dockerfile true
+    //}
+    
+    agent any
+    
+    environment {
+        REGISTRY_ADDR='10.20.80.16'
+        IMAGE_PREFIX="devops"
+        IMAGE_ENDPOINT="${IMAGE_PREFIX}_${env.JOB_NAME}"
+        IMAGE_NAME_WEB="devops_web"
+        IMAGE_NAME_NGX="devops_ngx"
+        
+        def IMAGE_TAG = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+        def IMAGE_VERSION="${REGISTRY_ADDR}/${IMAGE_ENDPOINT}:${IMAGE_TAG}-${BUILD_NUMBER}"
+    }
+    
+    options {
+        disableConcurrentBuilds()
+    }
+    
+    stages {
+        stage('编译打包镜像') {
+            steps {
+                script {
+                    echo "+++++++++++++++ 编译${IMAGE_ENDPOINT}及打包镜像"
+                    //sh "docker build -t ${REGISTRY_ADDR}/${IMAGE_ENDPOINT}:${IMAGE_TAG} ."
+                    sh "docker build -t ${IMAGE_VERSION} ."
+
+                    echo "+++++++++++++++ push ${IMAGE_ENDPOINT}镜像到仓库"
+                    sh "docker push ${IMAGE_VERSION}"
+                    //echo "+++++++++++++++ 清理环境"
+                    //sh '''
+                    //    docker rmi -f `docker images | grep  "<none>" | awk '{print $3}'`
+                    //    docker rmi -f `docker images | grep  "${IMAGE_ENDPOINT}" | awk '{print $3}'`
+                    //'''
+                }
+            }
+        }
+        
+        stage('部署') {
+            steps {
+                echo "+++++++++  渲染${IMAGE_ENDPOINT} docker compose 文件"
+                //sh '''sed -i "s@image:.*@image: ${IMAGE_VERSION}@g" docker-compose.yml'''
+                //sh '''envsubst '${IMAGE_VERSION} ${IMAGE_VERSION2}' < docker-compose.yml.template > docker-compose.yml'''
+                sh "${JENKINS_HOME}/scripts/local/devops/frontend/deploy.sh ${IMAGE_VERSION}"
+            }
+        }
+    }
+    
+    post {
+        success {
+            dingtalk (
+                robot: '239882c2-89fd-4312-a80c-7f244086d85e',
+                type: 'TEXT',
+                text: [
+                    'TG测试环境:',
+                    "${IMAGE_ENDPOINT}更新完成.",
+                    "Image Version: ${IMAGE_VERSION}"
+                ]
+            )
+        }
+            
+        failure {
+            dingtalk (
+                robot: '839882c2-89fd-4312-a90c-7f244088d85e',
+                type: 'TEXT',
+                text: [
+                    'TG测试环境:',
+                    "${IMAGE_ENDPOINT}更新失败请查看日志.",
+                    "Jenkins URL: http://10.20.80.4/job/${env.JOB_NAME}/"
+                ]
+            )
+        }
+    
+        always {
+            echo "+++++++++++++++ 清理编译环境"
+            sh '''
+                IMGS=`docker images | grep  "<none>" | awk '{print $3}'`
+                if [ -n "${IMGS}" ]; then 
+                    docker rmi -f `docker images | grep  "<none>" | awk '{print $3}'`
+                fi
+
+                TMP=`docker images | grep -w "${IMAGE_ENDPOINT}" | awk '{print $3}'`
+                if [ -n "${TMP}" ]; then
+                    docker rmi -f `docker images | grep -w "${IMAGE_ENDPOINT}" | awk '{print $3}'`
+                fi
+            '''
+        }
+    }
+}
+
