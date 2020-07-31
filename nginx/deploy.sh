@@ -1,0 +1,28 @@
+#!/bin/sh -x
+
+JOB_IP="10.20.80.235"
+BASE_NAME="frontend"
+COMPOSE_DIR="/home/${BASE_NAME}"
+
+IMAGE_FRONTEND="$1"
+
+FRONTEND_EXTERNAL_IP="10.20.80.235"
+FILESERVER_INTERNAL_IP="10.20.80.235"
+FILESERVER_PORT="8081"
+DASHBOARD_NGX_INTERNAL_IP="10.20.80.235"
+DASHBOARD_NGX_PORT="8082"
+
+export IMAGE_FRONTEND FRONTEND_EXTERNAL_IP FILESERVER_INTERNAL_IP FILESERVER_PORT DASHBOARD_NGX_INTERNAL_IP DASHBOARD_NGX_PORT
+
+render_compose() {
+    envsubst '${IMAGE_FRONTEND} ${FRONTEND_EXTERNAL_IP} ${FILESERVER_INTERNAL_IP} ${FILESERVER_PORT} ${DASHBOARD_NGX_INTERNAL_IP} ${DASHBOARD_NGX_PORT}' < ${WORKSPACE}/docker-compose.yml.template > ${WORKSPACE}/docker-compose.yml
+}
+
+deploy() {
+    ssh root@${JOB_IP} "[ ! -d ${COMPOSE_DIR} ] && mkdir -p ${COMPOSE_DIR};exit"
+    scp ${WORKSPACE}/docker-compose.yml root@${JOB_IP}:${COMPOSE_DIR}
+    ssh root@${JOB_IP} "cd ${COMPOSE_DIR};docker-compose up -d;exit"
+}
+
+render_compose
+deploy
