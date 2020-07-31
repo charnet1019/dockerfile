@@ -10,7 +10,7 @@ services:
     ports:
       - 443:443
     networks:
-      - chaos
+      - devops
     volumes:
       - ./logs:/var/log/nginx
       - /usr/share/zoneinfo/Asia/Shanghai:/etc/localtime:ro
@@ -18,7 +18,6 @@ services:
       FRONTEND_EXTERNAL_IP: ${FRONTEND_EXTERNAL_IP}
       FILESERVER_INTERNAL_IP: ${FILESERVER_INTERNAL_IP}
       FILESERVER_PORT: ${FILESERVER_PORT}
-      DASHBOARD_NGX_INTERNAL_IP: ${DASHBOARD_NGX_INTERNAL_IP}
       DASHBOARD_NGX_PORT: ${DASHBOARD_NGX_PORT}
     logging:
       driver: json-file
@@ -27,6 +26,6 @@ services:
         max-size: '10m'
 
 networks:
-  chaos:
+  devops:
     driver: bridge
     external: true
