@@ -1,0 +1,32 @@
+---
+version: '3.7'
+
+services:
+  frontend:
+    hostname: web
+    container_name: web
+    image: ${IMAGE_FRONTEND}
+    restart: always
+    ports:
+      - 443:443
+    networks:
+      - chaos
+    volumes:
+      - ./logs:/var/log/nginx
+      - /usr/share/zoneinfo/Asia/Shanghai:/etc/localtime:ro
+    environment:
+      FRONTEND_EXTERNAL_IP: ${FRONTEND_EXTERNAL_IP}
+      FILESERVER_INTERNAL_IP: ${FILESERVER_INTERNAL_IP}
+      FILESERVER_PORT: ${FILESERVER_PORT}
+      DASHBOARD_NGX_INTERNAL_IP: ${DASHBOARD_NGX_INTERNAL_IP}
+      DASHBOARD_NGX_PORT: ${DASHBOARD_NGX_PORT}
+    logging:
+      driver: json-file
+      options:
+        max-file: '3'
+        max-size: '10m'
+
+networks:
+  chaos:
+    driver: bridge
+    external: true
